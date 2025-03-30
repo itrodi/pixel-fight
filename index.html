@@ -1,0 +1,2907 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Pixel Fight - ZORA Edition</title>
+    <script src="https://unpkg.com/@farcade/game-sdk@latest/dist/index.min.js"></script>
+    <!-- ZORA and Web3 Dependencies -->
+    <script src="https://unpkg.com/viem@2.0.0/dist/index.umd.js"></script>
+    <script src="https://unpkg.com/@zoralabs/coins-sdk@0.0.3/dist/index.umd.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        touch-action: manipulation;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+        font-family: "Courier New", monospace;
+      }
+
+      body {
+        overflow: hidden;
+        background-color: #181818;
+        height: 100vh;
+        width: 100vw;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      #game-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        max-width: 500px;
+        max-height: 800px;
+        overflow: hidden;
+        background-color: #0a0a2a; /* Dark blue background */
+      }
+
+      #game-screen {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+      }
+
+      #score-container {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 10;
+        font-size: 16px;
+        color: #ffffff;
+        font-weight: bold;
+      }
+
+      #wave-container {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10;
+        font-size: 16px;
+        color: #ffffff;
+        font-weight: bold;
+      }
+
+      #health-container {
+        position: absolute;
+        top: 36px;
+        left: 10px;
+        height: 20px;
+        width: 150px;
+        background-color: #333333;
+        border: 2px solid #444444;
+        z-index: 10;
+        overflow: hidden;
+      }
+
+      #health-bar {
+        height: 100%;
+        width: 100%;
+        background-color: #00ff00;
+        transition: width 0.3s;
+      }
+
+      #weapon-container {
+        position: absolute;
+        top: 36px;
+        right: 10px;
+        z-index: 10;
+        font-size: 14px;
+        color: #ffcc00;
+        font-weight: bold;
+      }
+
+      #bomb-container {
+        position: absolute;
+        top: 62px;
+        right: 10px;
+        z-index: 10;
+        font-size: 14px;
+        color: #ff44ff;
+        font-weight: bold;
+      }
+
+      #token-container {
+        position: absolute;
+        top: 62px;
+        left: 10px;
+        z-index: 10;
+        font-size: 14px;
+        color: #44aaff;
+        font-weight: bold;
+      }
+
+      #start-screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #0a0a2a;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
+      }
+
+      .title {
+        font-size: 24px;
+        font-weight: bold;
+        color: #ffffff;
+        margin-bottom: 20px;
+        text-align: center;
+        animation: pulse 1.5s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      .button {
+        padding: 10px 20px;
+        font-size: 16px;
+        font-weight: bold;
+        background-color: #4444ff;
+        color: #ffffff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 20px;
+      }
+
+      .button:active {
+        transform: scale(0.95);
+      }
+
+      .button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      #player {
+        position: absolute;
+        width: 24px;
+        height: 24px;
+        background-color: #00ff00;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-radius: 3px;
+        z-index: 5;
+      }
+
+      .ally {
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        background-color: #22cc22;
+        border-radius: 3px;
+        z-index: 4;
+      }
+
+      .shield {
+        position: absolute;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 3px solid #4444ff;
+        top: -4px;
+        left: -4px;
+        opacity: 0.7;
+        display: none;
+        animation: shieldPulse 1s infinite alternate;
+      }
+
+      @keyframes shieldPulse {
+        0% {
+          box-shadow: 0 0 5px #4444ff;
+        }
+        100% {
+          box-shadow: 0 0 15px #4444ff;
+        }
+      }
+
+      .enemy {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background-color: #ff0000;
+        border-radius: 3px;
+      }
+
+      .health-bar-container {
+        position: absolute;
+        width: 30px;
+        height: 4px;
+        background-color: #333333;
+        bottom: -8px;
+        left: -3px;
+      }
+
+      .health-bar {
+        height: 100%;
+        background-color: #ff3333;
+        width: 100%;
+      }
+
+      .bullet {
+        position: absolute;
+        width: 4px;
+        height: 10px;
+        background-color: #ffff00;
+        border-radius: 2px;
+      }
+
+      .bullet.level2 {
+        background-color: #ffaa00;
+        width: 5px;
+        height: 12px;
+      }
+
+      .bullet.level3 {
+        background-color: #ff5500;
+        width: 6px;
+        height: 14px;
+      }
+
+      .enemy-bullet {
+        position: absolute;
+        width: 4px;
+        height: 8px;
+        background-color: #ff5555;
+        border-radius: 2px;
+      }
+
+      .power-up {
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        animation: pulsePowerUp 0.8s infinite alternate;
+      }
+
+      .power-up.shield {
+        background-color: #4444ff;
+      }
+
+      .power-up.ally {
+        background-color: #22cc22;
+      }
+
+      .power-up.weapon {
+        background-color: #ffcc00;
+      }
+
+      .power-up.health {
+        background-color: #ff4444;
+      }
+
+      .power-up.bomb {
+        background-color: #ff44ff;
+      }
+
+      .power-up.token {
+        background-color: #44aaff;
+      }
+
+      @keyframes pulsePowerUp {
+        0% {
+          transform: scale(1);
+          opacity: 0.8;
+        }
+        100% {
+          transform: scale(1.2);
+          opacity: 1;
+        }
+      }
+
+      .explosion {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        background-color: #ff8800;
+        border-radius: 50%;
+        opacity: 0.8;
+        animation: explode 0.3s forwards;
+      }
+
+      .bomb-explosion {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        background: radial-gradient(circle, #ff44ff 0%, transparent 70%);
+        border-radius: 50%;
+        opacity: 0.8;
+        animation: bombExplode 0.5s forwards;
+      }
+
+      @keyframes explode {
+        0% {
+          transform: scale(0.5);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1.5);
+          opacity: 0;
+        }
+      }
+
+      @keyframes bombExplode {
+        0% {
+          transform: scale(0.5);
+          opacity: 0.8;
+        }
+        50% {
+          transform: scale(1.5);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(2);
+          opacity: 0;
+        }
+      }
+
+      .particle {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background-color: #ff4400;
+        border-radius: 50%;
+      }
+
+      .star {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        background-color: rgba(255, 255, 255, 0.5);
+        border-radius: 50%;
+      }
+
+      .flash {
+        animation: flashScreen 0.2s;
+      }
+
+      @keyframes flashScreen {
+        0% {
+          background-color: #0a0a2a;
+        }
+        50% {
+          background-color: #ff0000;
+        }
+        100% {
+          background-color: #0a0a2a;
+        }
+      }
+
+      .wave-notification {
+        position: absolute;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #ffffff;
+        font-size: 24px;
+        font-weight: bold;
+        text-align: center;
+        z-index: 50;
+        opacity: 0;
+        animation: fadeInOut 2s forwards;
+      }
+
+      @keyframes fadeInOut {
+        0% {
+          opacity: 0;
+          transform: translateX(-50%) scale(0.8);
+        }
+        50% {
+          opacity: 1;
+          transform: translateX(-50%) scale(1);
+        }
+        90% {
+          opacity: 1;
+          transform: translateX(-50%) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translateX(-50%) scale(1.1);
+        }
+      }
+
+      .score-popup {
+        position: absolute;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: bold;
+        z-index: 20;
+        opacity: 0;
+        animation: floatUp 1s forwards;
+      }
+
+      @keyframes floatUp {
+        0% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+      }
+
+      .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #0a0a2a;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 200;
+      }
+
+      .loading-text {
+        font-size: 18px;
+        font-weight: bold;
+        color: #ffffff;
+        margin-top: 20px;
+      }
+
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #222244;
+        border-radius: 50%;
+        border-top-color: #4444ff;
+        animation: spinner 1s linear infinite;
+      }
+
+      @keyframes spinner {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      #game-over-screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 150;
+      }
+
+      .game-over-title {
+        font-size: 32px;
+        font-weight: bold;
+        color: #ff0000;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+
+      .final-score {
+        font-size: 24px;
+        color: #ffffff;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .enemies-defeated {
+        font-size: 18px;
+        color: #ffffff;
+        margin-bottom: 10px;
+        text-align: center;
+      }
+
+      .tokens-earned {
+        font-size: 20px;
+        color: #44aaff;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+
+      .road {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 20px;
+        background-color: #333333;
+      }
+
+      #modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 300;
+      }
+
+      #modal-content {
+        background-color: #0a0a2a;
+        padding: 20px;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 400px;
+        text-align: center;
+        position: relative;
+      }
+
+      #modal-title {
+        font-size: 22px;
+        font-weight: bold;
+        color: #ffffff;
+        margin-bottom: 15px;
+      }
+
+      #modal-message {
+        font-size: 16px;
+        color: #ffffff;
+        margin-bottom: 20px;
+        line-height: 1.4;
+      }
+
+      .close-modal {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 20px;
+        cursor: pointer;
+        color: #ffffff;
+      }
+
+      #zora-status {
+        display: block;
+        color: #44aaff;
+        font-size: 14px;
+        margin-top: 5px;
+        text-align: center;
+      }
+
+      .action-button {
+        padding: 8px 15px;
+        font-size: 14px;
+        font-weight: bold;
+        background-color: #44aaff;
+        color: #ffffff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin: 5px;
+      }
+
+      #nft-info {
+        margin-top: 15px;
+        padding: 10px;
+        background-color: rgba(68, 170, 255, 0.1);
+        border-radius: 5px;
+        text-align: left;
+        display: none;
+      }
+
+      #nft-title {
+        font-weight: bold;
+        color: #44aaff;
+      }
+
+      #transaction-status {
+        margin-top: 10px;
+        color: #ffcc00;
+        font-size: 14px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-container">
+      <div id="game-screen">
+        <div id="score-container">SCORE: 0</div>
+        <div id="wave-container">WAVE: 1</div>
+        <div id="health-container">
+          <div id="health-bar"></div>
+        </div>
+        <div id="weapon-container">WEAPON: LV.1</div>
+        <div id="bomb-container">BOMBS: 0</div>
+        <div id="token-container">TOKENS: 0</div>
+
+        <div class="road"></div>
+
+        <div id="player">
+          <div class="shield" id="shield"></div>
+        </div>
+      </div>
+
+      <div id="start-screen">
+        <div class="title">PIXEL<br />FIGHT</div>
+        <div style="color: #ffffff; text-align: center; margin: 0 20px">
+          Lead your pixel through waves of enemy pixels!<br />
+          Touch left/right sides of screen to move.<br />
+          Auto-fire when enemies are in range.<br />
+          Collect power-ups to survive the battle!
+        </div>
+        <button id="connect-wallet" class="button" style="background-color: #44aaff; margin-top: 15px;">CONNECT WALLET</button>
+        <div id="zora-status">Connect wallet to earn & use PFT tokens</div>
+        <button id="start-button" class="button">START GAME</button>
+      </div>
+
+      <div id="game-over-screen">
+        <div class="game-over-title">GAME OVER</div>
+        <div class="final-score" id="final-score">FINAL SCORE: 0</div>
+        <div class="enemies-defeated" id="enemies-defeated">ENEMIES DEFEATED: 0</div>
+        <div class="wave-reached" id="wave-reached">WAVE REACHED: 0</div>
+        <div class="tokens-earned" id="tokens-earned">TOKENS EARNED: 0</div>
+        <button id="claim-tokens" class="button" style="background-color: #44aaff; display: none;">CLAIM TOKENS</button>
+        <button id="restart-button" class="button">PLAY AGAIN</button>
+      </div>
+
+      <div id="loading-screen" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading...</div>
+      </div>
+    </div>
+
+    <div id="modal">
+      <div id="modal-content">
+        <span class="close-modal">&times;</span>
+        <div id="modal-title">Title</div>
+        <div id="modal-message">Message</div>
+        <div id="nft-info">
+          <div id="nft-title">Pixel Fight Token (PFT)</div>
+          <div id="nft-details">The official token for the Pixel Fight game. Earn by playing, spend on upgrades!</div>
+        </div>
+        <div id="transaction-status">Processing transaction...</div>
+        <div id="modal-actions"></div>
+      </div>
+    </div>
+
+    <script>
+      // Game configuration
+      const config = {
+        playerHealth: 100,
+        playerSpeed: 5,
+        bulletSpeed: 8,
+        enemyBulletSpeed: 5,
+        enemySpeed: 1.4,
+        enemyCount: {
+          initial: 15,
+          incrementPerWave: 3,
+          max: 35,
+        },
+        enemyShootChance: 0.015,
+        powerUpChance: 0.05,
+        baseEnemyDamage: 12,
+        shieldDuration: 6000,
+        invincibilityTime: 1500,
+        allyCount: 0,
+        maxAllies: 8,
+        progressSpeed: 1,
+        autoShootDelay: 500,
+        waveAdvanceDistance: 500,
+        scoreValues: {
+          normalEnemy: 5,
+          fastEnemy: 10,
+          toughEnemy: 15,
+          zigzagEnemy: 12,
+        },
+        enemyHealth: {
+          normal: 2,
+          fast: 1,
+          tough: 5,
+          zigzag: 3,
+        },
+        starCount: 50,
+        difficultyMultiplier: 1.2,
+        screenWidth: 0,
+        laneCount: 5,
+        laneSafety: 100,
+        healthDropChance: 0.02,
+        shieldDropChance: 0.07,
+        bombDropChance: 0.03,
+        allyDropChance: 0.1,
+        weaponUpgradeChance: 0.05,
+        tokenDropChance: 0.06, // New: token drop chance
+        damageMultiplierAfterWave3: 1.5,
+        bulletDamage: {
+          1: 1,
+          2: 2,
+          3: 3,
+        },
+        bombDamageRadius: 100,
+        allyFormationGap: 40,
+        waveClearBonusMultiplier: 25,
+        // ZORA SDK Configuration
+        tokenEarnRate: 100, // Score needed to earn 1 token
+        waveBonus: 5, // Tokens per wave completed
+        minTokensToClaim: 5, // Minimum tokens to claim
+        initialTokens: 10, // Starting tokens for new players
+        // Costs for upgrades
+        upgradeCosts: {
+          weapon: 10,
+          shield: 5,
+          bomb: 3,
+          ally: 8
+        }
+      };
+
+      // Game state
+      const game = {
+        state: "loading",
+        score: 0,
+        distance: 0,
+        currentDistance: 0,
+        enemiesDefeated: 0,
+        health: config.playerHealth,
+        wave: 1,
+        lastWaveChange: 0,
+        player: {
+          x: 0,
+          y: 0,
+          width: 24,
+          height: 24,
+          lane: 2,
+          element: null,
+          shielded: false,
+          invincible: false,
+          moving: false,
+          weaponLevel: 1,
+          bombCount: 0,
+        },
+        allies: [],
+        enemies: [],
+        bullets: [],
+        enemyBullets: [],
+        powerUps: [],
+        particles: [],
+        stars: [],
+        lanes: [],
+        tokens: 0, // New: token count
+        pendingTokens: 0, // New: tokens earned but not claimed
+        keys: {
+          left: false,
+          right: false,
+        },
+        touch: {
+          active: false,
+        },
+        animationFrameId: null,
+        lastUpdateTime: 0,
+        farcadeInitialized: false,
+        shieldTimer: null,
+        lastAutoShoot: 0,
+        hasEnemies: false,
+        allEnemiesDefeated: false,
+      };
+
+      // ZORA integration
+      const zora = {
+        isConnected: false,
+        walletAddress: null,
+        coinAddress: null, // Will be set after coin creation/retrieval
+        walletClient: null,
+        publicClient: null,
+        provider: null,
+        initialized: false,
+        coinName: "Pixel Fight Token",
+        coinSymbol: "PFT",
+        coinMetadataUri: "ipfs://bafkreihbdjsma7smynrchyqiwhuknptxcrgqrxhzal22hzb25ypzyjuroa", // Example IPFS hash
+        initialLiquidityAmount: "0.003", // ~$10 at ~$3000/ETH
+        // Chaindata
+        chainConfig: {
+          id: 8453, // Base mainnet
+          name: 'Base',
+          rpcUrl: 'https://mainnet.base.org'
+        },
+        /* For testnet
+        chainConfig: {
+          id: 84531, // Base Goerli testnet
+          name: 'Base Goerli',
+          rpcUrl: 'https://goerli.base.org'
+        }, */
+        creatingCoin: false,
+        initializingTokens: false,
+        claimingTokens: false,
+        errorMessage: "",
+        gameNonce: 0, // Used to track game sessions
+      };
+
+      // Audio
+      const audio = {
+        isMuted: false,
+        sounds: {
+          shoot: new Audio("https://assets.codepen.io/21542/sfx_weapon_singleshot7.wav"),
+          enemyShoot: new Audio("https://assets.codepen.io/21542/sfx_weapon_singleshot8.wav"),
+          hit: new Audio("https://assets.codepen.io/21542/sfx_deathscream_alien1.wav"),
+          playerHit: new Audio("https://assets.codepen.io/21542/sfx_deathscream_human4.wav"),
+          powerUp: new Audio("https://assets.codepen.io/21542/sfx_sounds_powerup4.wav"),
+          newAlly: new Audio("https://assets.codepen.io/21542/sfx_sounds_powerup6.wav"),
+          gameOver: new Audio("https://assets.codepen.io/21542/sfx_sound_shutdown1.wav"),
+          newWave: new Audio("https://assets.codepen.io/21542/sfx_sounds_fanfare3.wav"),
+          bomb: new Audio("https://assets.codepen.io/21542/explosion.wav"),
+          upgrade: new Audio("https://assets.codepen.io/21542/sfx_sounds_powerup4.wav"),
+          token: new Audio("https://assets.codepen.io/21542/coin.wav"),
+        },
+        play: function (soundName) {
+          if (this.isMuted) return;
+          try {
+            const sound = this.sounds[soundName];
+            if (sound) {
+              if (sound.paused) {
+                sound.currentTime = 0;
+                sound.volume = 0.3;
+                sound.play().catch((err) => console.log("Audio playback prevented:", err));
+              } else {
+                const newSound = new Audio(sound.src);
+                newSound.volume = 0.3;
+                newSound.play().catch((err) => console.log("Audio playback prevented:", err));
+              }
+            }
+          } catch (error) {
+            console.log("Sound playback failed:", error);
+          }
+        },
+        setMuted: function (muted) {
+          this.isMuted = muted;
+        },
+      };
+
+      // Functions to preload sounds
+      function preloadSounds() {
+        for (const key in audio.sounds) {
+          const sound = audio.sounds[key];
+          sound.load();
+          sound.volume = 0;
+          sound
+            .play()
+            .then(() => {
+              sound.pause();
+              sound.currentTime = 0;
+              sound.volume = 0.3;
+            })
+            .catch((err) => {
+              console.log("Audio preload interrupted:", err);
+            });
+        }
+      }
+
+      // Initialize the game
+      function initGame() {
+        document.getElementById("loading-screen").style.display = "flex";
+        setupEventListeners();
+        createStars();
+        preloadSounds();
+        initFarcadeSDK();
+
+        // Get screen dimensions
+        const gameScreen = document.getElementById("game-screen");
+        config.screenWidth = gameScreen.clientWidth;
+
+        // Initialize lane positions
+        initializeLanes();
+
+        // Setup web3 connection button
+        document.getElementById("connect-wallet").addEventListener("click", connectWallet);
+        document.getElementById("claim-tokens").addEventListener("click", claimTokensToWallet);
+
+        // Close modal on X click
+        document.querySelector(".close-modal").addEventListener("click", closeModal);
+
+        setTimeout(() => {
+          document.getElementById("loading-screen").style.display = "none";
+          game.state = "start";
+          updateTokenDisplay();
+        }, 1500);
+      }
+
+      function initializeLanes() {
+        // Calculate lane positions
+        game.lanes = [];
+        const laneWidth = (config.screenWidth - 2 * config.laneSafety) / (config.laneCount - 1);
+
+        for (let i = 0; i < config.laneCount; i++) {
+          game.lanes.push(config.laneSafety + i * laneWidth);
+        }
+      }
+
+      // Web3 and ZORA Integration
+      async function connectWallet() {
+        const connectButton = document.getElementById("connect-wallet");
+        const statusDiv = document.getElementById("zora-status");
+
+        if (zora.isConnected) {
+          showModal("Already Connected", `Wallet ${shortenAddress(zora.walletAddress)} is already connected.`);
+          return;
+        }
+
+        statusDiv.textContent = "Connecting wallet...";
+        connectButton.disabled = true;
+
+        try {
+          if (!window.ethereum) {
+            throw new Error("No Web3 wallet detected. Please install MetaMask or another wallet.");
+          }
+
+          // Request accounts access
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          zora.walletAddress = accounts[0];
+
+          // Check chain and switch if necessary
+          const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+          if (parseInt(chainId, 16) !== zora.chainConfig.id) {
+            statusDiv.textContent = `Switching to ${zora.chainConfig.name} network...`;
+            try {
+              await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: `0x${zora.chainConfig.id.toString(16)}` }],
+              });
+            } catch (switchError) {
+              // If chain doesn't exist, add it
+              if (switchError.code === 4902) {
+                try {
+                  await window.ethereum.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [{
+                      chainId: `0x${zora.chainConfig.id.toString(16)}`,
+                      chainName: zora.chainConfig.name,
+                      rpcUrls: [zora.chainConfig.rpcUrl],
+                      nativeCurrency: {
+                        name: 'Ether',
+                        symbol: 'ETH',
+                        decimals: 18
+                      }
+                    }],
+                  });
+                } catch (addError) {
+                  throw new Error(`Failed to add ${zora.chainConfig.name} network: ${addError.message}`);
+                }
+              } else {
+                throw new Error(`Failed to switch to ${zora.chainConfig.name} network: ${switchError.message}`);
+              }
+            }
+          }
+
+          // Initialize viem clients
+          statusDiv.textContent = "Initializing wallet...";
+          
+          // Get viem functions from the global object
+          const { createWalletClient, createPublicClient, http, parseEther } = viem;
+          
+          zora.publicClient = createPublicClient({
+            chain: {
+              id: zora.chainConfig.id,
+              name: zora.chainConfig.name,
+              rpcUrls: {
+                default: { http: [zora.chainConfig.rpcUrl] },
+              },
+            },
+            transport: http(zora.chainConfig.rpcUrl),
+          });
+          
+          zora.walletClient = createWalletClient({
+            account: zora.walletAddress,
+            chain: {
+              id: zora.chainConfig.id,
+              name: zora.chainConfig.name,
+              rpcUrls: {
+                default: { http: [zora.chainConfig.rpcUrl] },
+              },
+            },
+            transport: custom(window.ethereum),
+          });
+
+          // Setup complete
+          zora.isConnected = true;
+          connectButton.textContent = "WALLET CONNECTED";
+          connectButton.style.backgroundColor = "#22aa22";
+          statusDiv.textContent = `Connected: ${shortenAddress(zora.walletAddress)}`;
+          
+          // Initialize game token
+          await initializeGameToken();
+          
+          // Update token display
+          updateTokenDisplay();
+          
+          // Show upgrade store
+          showStore();
+          
+          // Listen for network changes
+          window.ethereum.on('chainChanged', handleChainChange);
+          window.ethereum.on('accountsChanged', handleAccountsChange);
+        } catch (error) {
+          console.error("Wallet connection error:", error);
+          connectButton.disabled = false;
+          statusDiv.textContent = error.message || "Failed to connect wallet. Try again.";
+          zora.errorMessage = error.message;
+          zora.isConnected = false;
+        }
+      }
+      
+      function handleChainChange() {
+        // Reload the page when chain changes
+        window.location.reload();
+      }
+      
+      function handleAccountsChange(accounts) {
+        if (accounts.length === 0) {
+          // User disconnected their wallet
+          zora.isConnected = false;
+          zora.walletAddress = null;
+          document.getElementById("connect-wallet").textContent = "CONNECT WALLET";
+          document.getElementById("connect-wallet").style.backgroundColor = "#44aaff";
+          document.getElementById("connect-wallet").disabled = false;
+          document.getElementById("zora-status").textContent = "Connect wallet to earn & use PFT tokens";
+        } else if (accounts[0] !== zora.walletAddress) {
+          // User switched accounts
+          window.location.reload();
+        }
+      }
+      
+      function shortenAddress(address) {
+        return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
+      }
+      
+      async function initializeGameToken() {
+        try {
+          if (zora.initializingTokens) return;
+          zora.initializingTokens = true;
+          
+          const statusDiv = document.getElementById("zora-status");
+          statusDiv.textContent = "Checking token...";
+          
+          // Try to fetch the token info
+          let coinAddress;
+          
+          // Check for an existing coin
+          const HARDCODED_COIN_ADDRESS = localStorage.getItem("pixelFightCoinAddress") || "";
+          
+          if (HARDCODED_COIN_ADDRESS) {
+            // Use the hardcoded address if it exists
+            coinAddress = HARDCODED_COIN_ADDRESS;
+            zora.coinAddress = coinAddress;
+            
+            // Verify it exists using the ZORA SDK
+            try {
+              const coinDetails = await getCoinDetails(coinAddress);
+              
+              if (coinDetails) {
+                statusDiv.textContent = `Connected: ${shortenAddress(zora.walletAddress)} | Token: ${coinDetails.symbol || zora.coinSymbol}`;
+                zora.initialized = true;
+                zora.initializingTokens = false;
+                
+                // Set initial tokens (simulated - in a real app, you'd query the blockchain)
+                game.tokens = config.initialTokens;
+                updateTokenDisplay();
+                return;
+              }
+            } catch (e) {
+              console.log("Token verification failed, will create new token:", e);
+              // Continue to token creation
+            }
+          }
+          
+          // If we get here, we need to create a new coin
+          showModal(
+            "Create Game Token",
+            "Would you like to create the Pixel Fight Token (PFT)? This will require a small amount of ETH for gas and initial liquidity (about $10).",
+            [
+              {
+                text: "CREATE TOKEN",
+                action: createGameToken,
+                style: "background-color: #44aaff;"
+              },
+              {
+                text: "CANCEL",
+                action: closeModal,
+                style: "background-color: #666666;"
+              }
+            ],
+            true
+          );
+          
+          zora.initializingTokens = false;
+        } catch (error) {
+          console.error("Failed to initialize game token:", error);
+          zora.errorMessage = error.message;
+          zora.initializingTokens = false;
+          
+          const statusDiv = document.getElementById("zora-status");
+          statusDiv.textContent = "Token initialization failed. Play without tokens.";
+        }
+      }
+      
+      async function getCoinDetails(coinAddress) {
+        try {
+          // Use ZORA SDK to get coin details
+          if (!window.zoralabsCoinsSdk) {
+            throw new Error("ZORA SDK not loaded");
+          }
+          
+          // Call the getCoin function from the ZORA SDK
+          const response = await window.zoralabsCoinsSdk.getCoin({ 
+            address: coinAddress,
+            chain: zora.chainConfig.id
+          });
+          
+          if (response && response.data && response.data.zora20Token) {
+            return response.data.zora20Token;
+          }
+          
+          return null;
+        } catch (error) {
+          console.error("Error getting coin details:", error);
+          return null;
+        }
+      }
+      
+      async function createGameToken() {
+        if (zora.creatingCoin) return;
+        zora.creatingCoin = true;
+        
+        try {
+          document.getElementById("transaction-status").style.display = "block";
+          document.getElementById("transaction-status").textContent = "Creating game token...";
+          document.getElementById("modal-actions").style.display = "none";
+          
+          // Get necessary functions from viem and the ZORA SDK
+          const { parseEther } = window.viem;
+          
+          // Create the coin params
+          const coinParams = {
+            name: zora.coinName,
+            symbol: zora.coinSymbol,
+            uri: zora.coinMetadataUri,
+            payoutRecipient: zora.walletAddress, // This address receives creator fees
+            initialPurchaseWei: parseEther(zora.initialLiquidityAmount),
+          };
+          
+          // Get the ZORA coin factory contract details
+          const zoraCoinFactoryAbi = [
+            {
+              "inputs": [
+                { "name": "name", "type": "string" },
+                { "name": "symbol", "type": "string" },
+                { "name": "uri", "type": "string" },
+                { "name": "payoutRecipient", "type": "address" },
+                { "name": "initialPurchaseWei", "type": "uint256" }
+              ],
+              "name": "createCoin",
+              "outputs": [],
+              "stateMutability": "payable",
+              "type": "function"
+            }
+          ];
+          
+          // Get the coin factory address - ideally this would come from the SDK
+          // For now, we'll use a placeholder. In production, replace with actual address
+          // from ZORA documentation
+          const coinFactoryAddress = "0xAfEfC3301bc074BD20856C9DC559a7CB19e1f3B4"; // Example address, replace with actual
+          
+          // Manually construct the request for viem
+          const createRequest = {
+            address: coinFactoryAddress,
+            abi: zoraCoinFactoryAbi,
+            functionName: "createCoin",
+            args: [
+              coinParams.name,
+              coinParams.symbol,
+              coinParams.uri,
+              coinParams.payoutRecipient,
+              coinParams.initialPurchaseWei,
+            ],
+            value: coinParams.initialPurchaseWei, // Must match initialPurchaseWei
+          };
+          
+          // Simulate the transaction to catch errors early
+          try {
+            document.getElementById("transaction-status").textContent = "Simulating transaction...";
+            await zora.publicClient.simulateContract(createRequest);
+          } catch (simulateError) {
+            throw new Error(`Transaction simulation failed: ${simulateError.message}`);
+          }
+          
+          // Execute the transaction
+          document.getElementById("transaction-status").textContent = "Waiting for wallet confirmation...";
+          const txHash = await zora.walletClient.writeContract(createRequest);
+          
+          document.getElementById("transaction-status").textContent = "Transaction submitted, waiting for confirmation...";
+          
+          // Wait for transaction to be mined
+          const receipt = await zora.publicClient.waitForTransactionReceipt({ hash: txHash });
+          
+          // Get the coin address from the logs
+          // In a real implementation, we'd use the SDK's getCoinCreateFromLogs function
+          // For now, we'll simulate it
+          const coinAddress = "0x" + receipt.logs[0].topics[1].slice(26); // Simulated extraction
+          
+          // Save the coin address
+          zora.coinAddress = coinAddress;
+          localStorage.setItem("pixelFightCoinAddress", coinAddress);
+          
+          document.getElementById("transaction-status").textContent = "Token created successfully!";
+          document.getElementById("zora-status").textContent = 
+            `Connected: ${shortenAddress(zora.walletAddress)} | Token: ${zora.coinSymbol}`;
+          
+          zora.initialized = true;
+          
+          // Set initial tokens
+          game.tokens = config.initialTokens;
+          updateTokenDisplay();
+          
+          // Show success and close after delay
+          setTimeout(() => {
+            closeModal();
+            showStore();
+          }, 2000);
+        } catch (error) {
+          console.error("Token creation failed:", error);
+          document.getElementById("transaction-status").textContent = "Token creation failed. Try again later.";
+          document.getElementById("modal-actions").style.display = "block";
+        } finally {
+          zora.creatingCoin = false;
+        }
+      }
+      
+      function showStore() {
+        if (!zora.isConnected || !zora.initialized) return;
+        
+        const upgrades = [
+          {
+            name: "WEAPON UPGRADE",
+            description: game.player.weaponLevel < 3 
+              ? `Increase weapon level to ${game.player.weaponLevel + 1}. More damage!`
+              : "Weapon already at maximum level!",
+            cost: config.upgradeCosts.weapon,
+            action: purchaseWeaponUpgrade,
+            available: game.player.weaponLevel < 3
+          },
+          {
+            name: "SHIELD",
+            description: "Buy a shield power-up for your next game.",
+            cost: config.upgradeCosts.shield,
+            action: purchaseShield,
+            available: true
+          },
+          {
+            name: "BOMB",
+            description: "Buy a bomb for your next game. Clear enemies quickly!",
+            cost: config.upgradeCosts.bomb,
+            action: purchaseBomb,
+            available: true
+          },
+          {
+            name: "ALLY",
+            description: game.allies.length < config.maxAllies 
+              ? "Recruit an ally to help you fight!"
+              : "Maximum allies already reached!",
+            cost: config.upgradeCosts.ally,
+            action: purchaseAlly,
+            available: game.allies.length < config.maxAllies
+          }
+        ];
+        
+        showModal(
+          "PIXEL FIGHT STORE",
+          `You have ${game.tokens} PFT tokens. Spend them on upgrades!`,
+          upgrades.map(upgrade => ({
+            text: `${upgrade.name} (${upgrade.cost} PFT)`,
+            description: upgrade.description,
+            action: upgrade.action,
+            style: `background-color: ${upgrade.available && game.tokens >= upgrade.cost ? '#44aaff' : '#666666'};`,
+            disabled: !upgrade.available || game.tokens < upgrade.cost
+          }))
+        );
+      }
+      
+      function purchaseWeaponUpgrade() {
+        if (game.tokens < config.upgradeCosts.weapon || game.player.weaponLevel >= 3) return;
+        
+        // Deduct tokens
+        game.tokens -= config.upgradeCosts.weapon;
+        
+        // Upgrade weapon
+        game.player.weaponLevel = Math.min(game.player.weaponLevel + 1, 3);
+        
+        // Update displays
+        updateTokenDisplay();
+        updateWeaponDisplay();
+        
+        // Sound effect
+        audio.play("upgrade");
+        
+        // Close modal and show confirmation
+        closeModal();
+        showNotification(`WEAPON UPGRADED TO LV.${game.player.weaponLevel}!`);
+      }
+      
+      function purchaseShield() {
+        if (game.tokens < config.upgradeCosts.shield) return;
+        
+        // Deduct tokens
+        game.tokens -= config.upgradeCosts.shield;
+        
+        // Apply shield effect for next game
+        activateShield();
+        
+        // Update display
+        updateTokenDisplay();
+        
+        // Sound effect
+        audio.play("powerUp");
+        
+        // Close modal and show confirmation
+        closeModal();
+        showNotification("SHIELD ACTIVATED!");
+      }
+      
+      function purchaseBomb() {
+        if (game.tokens < config.upgradeCosts.bomb) return;
+        
+        // Deduct tokens
+        game.tokens -= config.upgradeCosts.bomb;
+        
+        // Add bomb
+        game.player.bombCount++;
+        
+        // Update displays
+        updateTokenDisplay();
+        updateBombDisplay();
+        
+        // Sound effect
+        audio.play("powerUp");
+        
+        // Close modal and show confirmation
+        closeModal();
+        showNotification("BOMB ADDED!");
+      }
+      
+      function purchaseAlly() {
+        if (game.tokens < config.upgradeCosts.ally || game.allies.length >= config.maxAllies) return;
+        
+        // Deduct tokens
+        game.tokens -= config.upgradeCosts.ally;
+        
+        // Add ally
+        createAlly();
+        
+        // Update displays
+        updateTokenDisplay();
+        
+        // Sound effect
+        audio.play("newAlly");
+        
+        // Close modal and show confirmation
+        closeModal();
+        showNotification("ALLY ADDED!");
+      }
+      
+      async function claimTokensToWallet() {
+        if (!zora.isConnected || !zora.initialized || game.pendingTokens < config.minTokensToClaim) return;
+        
+        if (zora.claimingTokens) return;
+        zora.claimingTokens = true;
+        
+        const claimButton = document.getElementById("claim-tokens");
+        claimButton.textContent = "CLAIMING...";
+        claimButton.disabled = true;
+        
+        try {
+          showModal(
+            "Claiming Tokens",
+            `Converting your ${game.pendingTokens} game tokens to PFT tokens on the blockchain...`,
+            [],
+            true
+          );
+          
+          document.getElementById("transaction-status").style.display = "block";
+          document.getElementById("transaction-status").textContent = "Preparing transaction...";
+          
+          // Define the token ABI for minting
+          const tokenAbi = [
+            {
+              "inputs": [
+                { "name": "to", "type": "address" },
+                { "name": "amount", "type": "uint256" }
+              ],
+              "name": "mint",
+              "outputs": [],
+              "stateMutability": "nonpayable",
+              "type": "function"
+            }
+          ];
+          
+          // Prepare mint request
+          const mintRequest = {
+            address: zora.coinAddress,
+            abi: tokenAbi,
+            functionName: "mint",
+            args: [
+              zora.walletAddress,
+              window.viem.parseEther(game.pendingTokens.toString())
+            ]
+          };
+          
+          // Simulate the transaction first
+          try {
+            await zora.publicClient.simulateContract(mintRequest);
+          } catch (simulateError) {
+            console.log("Simulation error (expected for demo):", simulateError);
+            // For demo purposes, we'll continue despite the error
+            // In a real implementation, we would handle this properly
+          }
+          
+          // For a hackathon demo, we'll simulate this with a delay
+          // In a real implementation, this would call the actual mint function
+          document.getElementById("transaction-status").textContent = "Processing transaction...";
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
+          document.getElementById("transaction-status").textContent = "Transaction confirmed!";
+          
+          // Update token counts
+          game.tokens += game.pendingTokens;
+          game.pendingTokens = 0;
+          
+          // Update displays
+          updateTokenDisplay();
+          document.getElementById("tokens-earned").textContent = `TOKENS EARNED: 0`;
+          claimButton.style.display = "none";
+          
+          // Close modal after delay
+          setTimeout(() => {
+            closeModal();
+            showNotification(`TOKENS CLAIMED!`);
+          }, 1500);
+        } catch (error) {
+          console.error("Failed to claim tokens:", error);
+          document.getElementById("transaction-status").textContent = "Token claim failed. Try again later.";
+          
+          // Reset button
+          claimButton.textContent = "CLAIM TOKENS";
+          claimButton.disabled = false;
+        } finally {
+          zora.claimingTokens = false;
+        }
+      }
+
+      function showModal(title, message, actions = [], showNftInfo = false) {
+        document.getElementById("modal-title").textContent = title;
+        document.getElementById("modal-message").textContent = message;
+        
+        // Clear previous actions
+        const actionsContainer = document.getElementById("modal-actions");
+        actionsContainer.innerHTML = "";
+        actionsContainer.style.display = actions.length > 0 ? "block" : "none";
+        
+        // Add new actions
+        actions.forEach(action => {
+          const button = document.createElement("button");
+          button.className = "action-button";
+          button.textContent = action.text;
+          button.style = action.style || "";
+          
+          if (action.disabled) {
+            button.disabled = true;
+            button.style.opacity = "0.5";
+            button.style.cursor = "not-allowed";
+          }
+          
+          if (action.description) {
+            button.title = action.description;
+          }
+          
+          button.addEventListener("click", action.action);
+          actionsContainer.appendChild(button);
+        });
+        
+        // Show/hide NFT info
+        document.getElementById("nft-info").style.display = showNftInfo ? "block" : "none";
+        
+        // Hide transaction status initially
+        document.getElementById("transaction-status").style.display = "none";
+        
+        // Show modal
+        document.getElementById("modal").style.display = "flex";
+      }
+      
+      function closeModal() {
+        document.getElementById("modal").style.display = "none";
+      }
+
+      function initFarcadeSDK() {
+        try {
+          if (window.FarcadeSDK) {
+            // Set up Farcade SDK event handlers
+            window.FarcadeSDK.on("play_again", () => {
+              if (game.state === "gameOver") {
+                restartGame();
+              }
+            });
+
+            window.FarcadeSDK.on("toggle_mute", (data) => {
+              audio.setMuted(data.isMuted);
+            });
+
+            // Mark game as ready
+            window.FarcadeSDK.singlePlayer.actions.ready();
+
+            game.farcadeInitialized = true;
+            console.log("Farcade SDK initialized");
+          } else {
+            console.warn("Farcade SDK not available");
+          }
+        } catch (e) {
+          console.error("Error initializing Farcade SDK:", e);
+        }
+      }
+
+      function triggerHapticFeedback() {
+        if (game.farcadeInitialized && window.FarcadeSDK) {
+          try {
+            window.FarcadeSDK.singlePlayer.actions.hapticFeedback();
+          } catch (e) {
+            console.warn("Haptic feedback failed:", e);
+          }
+        }
+      }
+
+      function setupEventListeners() {
+        document.getElementById("start-button").addEventListener("click", startGame);
+        document.getElementById("restart-button").addEventListener("click", restartGame);
+
+        // Touch controls - touch left or right side of screen to move
+        document.getElementById("game-screen").addEventListener("touchstart", (e) => {
+          if (game.state !== "playing") return;
+
+          const touch = e.touches[0];
+          const screenWidth = document.getElementById("game-screen").clientWidth;
+
+          if (touch.clientX < screenWidth / 2) {
+            // Left side of screen
+            movePlayerLeft();
+          } else {
+            // Right side of screen
+            movePlayerRight();
+          }
+
+          // Check for bomb usage - double tap (implementation simplified)
+          if (game.player.bombCount > 0 && e.touches.length >= 2) {
+            useBomb();
+          }
+
+          e.preventDefault();
+        });
+
+        // For testing on desktop
+        document.getElementById("game-screen").addEventListener("mousedown", (e) => {
+          if (game.state !== "playing") return;
+
+          const screenWidth = document.getElementById("game-screen").clientWidth;
+
+          if (e.clientX < screenWidth / 2) {
+            movePlayerLeft();
+          } else {
+            movePlayerRight();
+          }
+        });
+
+        // Keyboard controls for testing
+        window.addEventListener("keydown", (e) => {
+          if (game.state !== "playing") return;
+
+          if (e.key === "ArrowLeft") {
+            movePlayerLeft();
+          } else if (e.key === "ArrowRight") {
+            movePlayerRight();
+          } else if (e.key === " " || e.key === "b") {
+            // Space or B key to use bomb
+            if (game.player.bombCount > 0) {
+              useBomb();
+            }
+          }
+        });
+
+        // Window resize
+        window.addEventListener("resize", () => {
+          const gameScreen = document.getElementById("game-screen");
+          config.screenWidth = gameScreen.clientWidth;
+          initializeLanes();
+          if (game.state === "playing") {
+            updatePlayerPosition();
+          }
+        });
+      }
+
+      function movePlayerLeft() {
+        if (game.state !== "playing") return;
+        if (game.player.lane > 0) {
+          game.player.lane--;
+          updatePlayerPosition();
+          triggerHapticFeedback();
+        }
+      }
+
+      function movePlayerRight() {
+        if (game.state !== "playing") return;
+        if (game.player.lane < config.laneCount - 1) {
+          game.player.lane++;
+          updatePlayerPosition();
+          triggerHapticFeedback();
+        }
+      }
+
+      function updatePlayerPosition() {
+        // Set player's horizontal position based on lane
+        game.player.x = game.lanes[game.player.lane] - game.player.width / 2;
+        game.player.element.style.left = `${game.player.x}px`;
+      }
+
+      function useBomb() {
+        if (game.player.bombCount <= 0) return;
+
+        // Decrease bomb count
+        game.player.bombCount--;
+        updateBombDisplay();
+
+        // Create bomb explosion
+        const gameScreen = document.getElementById("game-screen");
+
+        const explosion = document.createElement("div");
+        explosion.className = "bomb-explosion";
+        explosion.style.left = `${game.player.x - config.bombDamageRadius / 2 + game.player.width / 2}px`;
+        explosion.style.top = `${game.player.y - config.bombDamageRadius / 2}px`;
+
+        gameScreen.appendChild(explosion);
+
+        // Remove explosion after animation
+        setTimeout(() => {
+          if (explosion.parentNode) {
+            explosion.parentNode.removeChild(explosion);
+          }
+        }, 500);
+
+        // Destroy enemies within radius
+        let enemiesDestroyed = 0;
+        const bombCenterX = game.player.x + game.player.width / 2;
+        const bombCenterY = game.player.y;
+
+        for (let i = game.enemies.length - 1; i >= 0; i--) {
+          const enemy = game.enemies[i];
+          const enemyCenterX = enemy.x + enemy.width / 2;
+          const enemyCenterY = enemy.y + enemy.height / 2;
+
+          // Calculate distance between bomb and enemy
+          const dx = bombCenterX - enemyCenterX;
+          const dy = bombCenterY - enemyCenterY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          // If within radius, destroy enemy
+          if (distance <= config.bombDamageRadius) {
+            handleEnemyDefeat(enemy, i);
+            enemiesDestroyed++;
+
+            // Limit to 8 enemies maximum
+            if (enemiesDestroyed >= 8) break;
+          }
+        }
+
+        // Sound and haptic feedback
+        audio.play("bomb");
+        triggerHapticFeedback();
+
+        // Create score popup
+        createScorePopup(game.player.x, game.player.y - 20, `BOMB! +${enemiesDestroyed * 10}`);
+
+        // Add score
+        game.score += enemiesDestroyed * 10;
+      }
+
+      function startGame() {
+        document.getElementById("start-screen").style.display = "none";
+        resetGameState();
+        createInitialWave();
+
+        game.player.element = document.getElementById("player");
+        const gameScreen = document.getElementById("game-screen");
+        game.player.y = gameScreen.clientHeight - game.player.height - 40;
+
+        // Set player in the middle lane
+        game.player.lane = Math.floor(config.laneCount / 2);
+        updatePlayerPosition();
+
+        game.player.element.style.bottom = "40px";
+
+        updateHealthBar();
+        updateWeaponDisplay();
+        updateBombDisplay();
+        updateWaveDisplay();
+        updateTokenDisplay();
+
+        game.lastUpdateTime = performance.now();
+        game.state = "playing";
+        gameLoop();
+      }
+
+      function resetGameState() {
+        game.score = 0;
+        game.distance = 0;
+        game.currentDistance = 0;
+        game.enemiesDefeated = 0;
+        game.health = config.playerHealth;
+        game.wave = 1;
+        game.lastWaveChange = 0;
+        game.hasEnemies = false;
+        game.player.moving = false;
+        game.allEnemiesDefeated = false;
+        game.pendingTokens = 0;
+        
+        // If not connected to wallet, reset these values
+        if (!zora.isConnected) {
+          game.player.weaponLevel = 1;
+          game.player.bombCount = 0;
+        }
+
+        updateScoreDisplay();
+        updateWaveDisplay();
+        updateHealthBar();
+        updateWeaponDisplay();
+        updateBombDisplay();
+        updateTokenDisplay();
+
+        // Clean up existing elements
+        clearGameElements();
+
+        game.player.shielded = false;
+        game.player.invincible = false;
+        document.getElementById("shield").style.display = "none";
+
+        game.allies = [];
+        game.enemies = [];
+        game.bullets = [];
+        game.enemyBullets = [];
+        game.powerUps = [];
+        game.particles = [];
+
+        if (game.shieldTimer) clearTimeout(game.shieldTimer);
+
+        // Reset lane position
+        game.player.lane = Math.floor(config.laneCount / 2);
+      }
+
+      function clearGameElements() {
+        const gameScreen = document.getElementById("game-screen");
+        const elements = gameScreen.querySelectorAll(
+          ".enemy, .ally, .bullet, .enemy-bullet, .power-up, .explosion, .particle, .wave-notification, .score-popup, .bomb-explosion",
+        );
+        elements.forEach((element) => element.remove());
+      }
+
+      function createInitialWave() {
+        // Display wave notification
+        showNotification(`WAVE ${game.wave} INCOMING!`);
+
+        audio.play("newWave");
+        triggerHapticFeedback();
+
+        // Spawn initial enemies
+        setTimeout(() => {
+          for (let i = 0; i < config.enemyCount.initial; i++) {
+            createEnemy();
+          }
+          game.hasEnemies = true;
+        }, 1000);
+      }
+
+      function showNotification(message) {
+        const gameScreen = document.getElementById("game-screen");
+        const notification = document.createElement("div");
+        notification.className = "wave-notification";
+        notification.textContent = message;
+        gameScreen.appendChild(notification);
+
+        // Remove notification after animation completes
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 2000);
+      }
+
+      function advanceWave() {
+        game.wave++;
+        game.lastWaveChange = game.distance;
+        game.currentDistance = 0;
+        updateWaveDisplay();
+
+        showNotification(`WAVE ${game.wave} INCOMING!`);
+        audio.play("newWave");
+        triggerHapticFeedback();
+
+        // Increase enemy count based on wave
+        const enemyCount = Math.min(
+          config.enemyCount.initial + (game.wave - 1) * config.enemyCount.incrementPerWave,
+          config.enemyCount.max,
+        );
+
+        // Spawn enemies over time
+        const spawnDelay = 250;
+        for (let i = 0; i < enemyCount; i++) {
+          setTimeout(
+            () => {
+              if (game.state === "playing") {
+                createEnemy();
+              }
+            },
+            1000 + i * spawnDelay,
+          );
+        }
+
+        // Spawn a guaranteed power-up after each wave
+        setTimeout(
+          () => {
+            if (game.state === "playing") {
+              // Determine what power-up to spawn based on needs
+              let powerUpType;
+
+              if (game.health < config.playerHealth / 2) {
+                powerUpType = "health";
+              } else if (game.player.bombCount === 0) {
+                powerUpType = "bomb";
+              } else if (game.allies.length < config.maxAllies / 2) {
+                // Prioritize allies
+                powerUpType = "ally";
+              } else if (game.player.weaponLevel < 3 && game.wave >= 2) {
+                powerUpType = "weapon";
+              } else {
+                powerUpType = "shield";
+              }
+
+              createPowerUp(null, null, powerUpType);
+            }
+          },
+          1000 + enemyCount * spawnDelay + 500,
+        );
+
+        // Set enemies flag
+        game.hasEnemies = true;
+        game.player.moving = false;
+        game.allEnemiesDefeated = false;
+      }
+
+      function createEnemy() {
+        const gameScreen = document.getElementById("game-screen");
+
+        // Determine enemy type based on wave and randomness
+        let enemyType = "normal";
+        const typeRandom = Math.random();
+
+        if (game.wave >= 4) {
+          if (typeRandom < 0.3) enemyType = "normal";
+          else if (typeRandom < 0.6) enemyType = "fast";
+          else if (typeRandom < 0.85) enemyType = "zigzag";
+          else enemyType = "tough";
+        } else if (game.wave >= 2) {
+          if (typeRandom < 0.5) enemyType = "normal";
+          else if (typeRandom < 0.8) enemyType = "fast";
+          else enemyType = "zigzag";
+        }
+
+        // Choose a random lane
+        const laneIndex = Math.floor(Math.random() * config.laneCount);
+
+        // Create enemy at the top of the screen in the chosen lane
+        const x = game.lanes[laneIndex] - 10; // Center in lane
+        const y = -30; // Start off-screen
+
+        const enemy = {
+          x: x,
+          y: y,
+          width: 20,
+          height: 20,
+          type: enemyType,
+          lane: laneIndex,
+          health: config.enemyHealth[enemyType],
+          maxHealth: config.enemyHealth[enemyType],
+          velocityY:
+            config.enemySpeed * (enemyType === "fast" ? 1.5 : 1) * Math.pow(config.difficultyMultiplier, game.wave - 1),
+          shootTimer: Math.floor(Math.random() * 120),
+          zigzagCounter: 0,
+          element: document.createElement("div"),
+          healthBarContainer: null,
+          healthBar: null,
+        };
+
+        enemy.element.className = "enemy";
+        enemy.element.style.left = `${enemy.x}px`;
+        enemy.element.style.top = `${enemy.y}px`;
+
+        // Visual differences based on enemy type
+        if (enemyType === "fast") {
+          enemy.element.style.backgroundColor = "#ff8800";
+          enemy.element.style.height = "16px";
+        } else if (enemyType === "tough") {
+          enemy.element.style.backgroundColor = "#880000";
+          enemy.element.style.width = "24px";
+          enemy.element.style.height = "24px";
+        } else if (enemyType === "zigzag") {
+          enemy.element.style.backgroundColor = "#ff00ff";
+          enemy.element.style.borderRadius = "0";
+        }
+
+        // Add health bar for enemies with more than 1 health
+        if (enemy.maxHealth > 1) {
+          const healthBarContainer = document.createElement("div");
+          healthBarContainer.className = "health-bar-container";
+
+          const healthBar = document.createElement("div");
+          healthBar.className = "health-bar";
+
+          healthBarContainer.appendChild(healthBar);
+          enemy.element.appendChild(healthBarContainer);
+
+          enemy.healthBarContainer = healthBarContainer;
+          enemy.healthBar = healthBar;
+        }
+
+        gameScreen.appendChild(enemy.element);
+        game.enemies.push(enemy);
+      }
+
+      function createBullet() {
+        const gameScreen = document.getElementById("game-screen");
+
+        const bullet = {
+          x: game.player.x + game.player.width / 2 - 2,
+          y: game.player.y - 10,
+          width: 4,
+          height: 10,
+          velocityY: -config.bulletSpeed,
+          element: document.createElement("div"),
+          damage: config.bulletDamage[game.player.weaponLevel] || 1,
+        };
+
+        // Different bullet styles based on weapon level
+        bullet.element.className = `bullet${game.player.weaponLevel > 1 ? " level" + game.player.weaponLevel : ""}`;
+        bullet.element.style.left = `${bullet.x}px`;
+        bullet.element.style.top = `${bullet.y}px`;
+
+        gameScreen.appendChild(bullet.element);
+        game.bullets.push(bullet);
+
+        audio.play("shoot");
+      }
+
+      function createAlly() {
+        if (game.allies.length >= config.maxAllies) return;
+
+        const gameScreen = document.getElementById("game-screen");
+
+        // Choose position based on current allies
+        const allyPosition = game.allies.length;
+        let x, y;
+
+        // Position allies in formation behind player
+        if (allyPosition % 2 === 0) {
+          // Right side
+          x = game.player.x + game.player.width + 10 + Math.floor(allyPosition / 2) * 15;
+          y = game.player.y + 10 + Math.floor(allyPosition / 2) * 20;
+        } else {
+          // Left side
+          x = game.player.x - 10 - 16 - Math.floor(allyPosition / 2) * 15;
+          y = game.player.y + 10 + Math.floor(allyPosition / 2) * 20;
+        }
+
+        const ally = {
+          x: x,
+          y: y,
+          width: 16,
+          height: 16,
+          position: allyPosition,
+          shootTimer: Math.floor(Math.random() * 60),
+          element: document.createElement("div"),
+        };
+
+        ally.element.className = "ally";
+        ally.element.style.left = `${ally.x}px`;
+        ally.element.style.top = `${ally.y}px`;
+
+        gameScreen.appendChild(ally.element);
+        game.allies.push(ally);
+
+        audio.play("newAlly");
+        triggerHapticFeedback();
+      }
+
+      function createEnemyBullet(enemy) {
+        const gameScreen = document.getElementById("game-screen");
+
+        const bullet = {
+          x: enemy.x + enemy.width / 2 - 2,
+          y: enemy.y + enemy.height,
+          width: 4,
+          height: 8,
+          velocityY: config.enemyBulletSpeed,
+          element: document.createElement("div"),
+        };
+
+        bullet.element.className = "enemy-bullet";
+        bullet.element.style.left = `${bullet.x}px`;
+        bullet.element.style.top = `${bullet.y}px`;
+
+        gameScreen.appendChild(bullet.element);
+        game.enemyBullets.push(bullet);
+
+        audio.play("enemyShoot");
+      }
+
+      function createPowerUp(x, y, forcedType = null) {
+        const gameScreen = document.getElementById("game-screen");
+
+        // If position not specified, pick a random lane
+        if (x === null || y === null) {
+          const laneIndex = Math.floor(Math.random() * config.laneCount);
+          x = game.lanes[laneIndex] - 8; // Center in lane
+          y = -20; // Start off-screen
+        }
+
+        // Determine power-up type based on game state
+        let powerUpType;
+
+        if (forcedType) {
+          powerUpType = forcedType;
+        } else {
+          const typeRandom = Math.random();
+
+          if (game.health < config.playerHealth / 3) {
+            // Higher chance for health only when critically low
+            if (typeRandom < 0.35) powerUpType = "health";
+            else if (typeRandom < 0.55) powerUpType = "shield";
+            else if (typeRandom < 0.85) powerUpType = "ally"; // Increased ally chance
+            else if (typeRandom < 0.95) powerUpType = "weapon";
+            else powerUpType = "bomb";
+          } else {
+            // Normal distribution (prioritize allies over other power-ups)
+            if (typeRandom < 0.4) powerUpType = "ally"; // Highest chance for allies
+            else if (typeRandom < 0.6) powerUpType = "shield";
+            else if (typeRandom < 0.75) powerUpType = "health";
+            else if (typeRandom < 0.9) powerUpType = "weapon";
+            else powerUpType = "bomb";
+          }
+
+          // Chance to spawn a token power-up if user has wallet connected
+          if (zora.isConnected && zora.initialized && Math.random() < config.tokenDropChance) {
+            powerUpType = "token";
+          }
+        }
+
+        const powerUp = {
+          x: x,
+          y: y,
+          width: 16,
+          height: 16,
+          type: powerUpType,
+          velocityY: config.enemySpeed / 1.5, // Slower than enemies
+          element: document.createElement("div"),
+        };
+
+        powerUp.element.className = `power-up ${powerUpType}`;
+        powerUp.element.style.left = `${powerUp.x}px`;
+        powerUp.element.style.top = `${powerUp.y}px`;
+
+        gameScreen.appendChild(powerUp.element);
+        game.powerUps.push(powerUp);
+      }
+
+      function createExplosion(x, y, size = 30) {
+        const gameScreen = document.getElementById("game-screen");
+
+        const explosion = document.createElement("div");
+        explosion.className = "explosion";
+        explosion.style.left = `${x - size / 2}px`;
+        explosion.style.top = `${y - size / 2}px`;
+        explosion.style.width = `${size}px`;
+        explosion.style.height = `${size}px`;
+
+        gameScreen.appendChild(explosion);
+
+        // Remove explosion element after animation completes
+        setTimeout(() => {
+          if (explosion.parentNode) {
+            explosion.parentNode.removeChild(explosion);
+          }
+        }, 300);
+
+        // Create particles for added effect
+        createExplosionParticles(x, y, 10);
+      }
+
+      function createExplosionParticles(x, y, count) {
+        const gameScreen = document.getElementById("game-screen");
+
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 3 + 1;
+
+          const particle = {
+            x: x,
+            y: y,
+            velocityX: Math.cos(angle) * speed,
+            velocityY: Math.sin(angle) * speed,
+            life: 30,
+            element: document.createElement("div"),
+          };
+
+          particle.element.className = "particle";
+          particle.element.style.left = `${particle.x}px`;
+          particle.element.style.top = `${particle.y}px`;
+
+          gameScreen.appendChild(particle.element);
+          game.particles.push(particle);
+        }
+      }
+
+      function createScorePopup(x, y, amount) {
+        const gameScreen = document.getElementById("game-screen");
+
+        const popup = document.createElement("div");
+        popup.className = "score-popup";
+        popup.textContent = amount;
+        popup.style.left = `${x}px`;
+        popup.style.top = `${y}px`;
+
+        gameScreen.appendChild(popup);
+
+        // Remove popup after animation completes
+        setTimeout(() => {
+          if (popup.parentNode) {
+            popup.parentNode.removeChild(popup);
+          }
+        }, 1000);
+      }
+
+      function createStars() {
+        const gameScreen = document.getElementById("game-screen");
+        const screenWidth = gameScreen.clientWidth;
+        const screenHeight = gameScreen.clientHeight;
+
+        for (let i = 0; i < config.starCount; i++) {
+          const star = document.createElement("div");
+          star.className = "star";
+
+          const x = Math.random() * screenWidth;
+          const y = Math.random() * screenHeight;
+          const size = Math.random() * 2 + 1;
+          const opacity = Math.random() * 0.5 + 0.3;
+
+          star.style.left = `${x}px`;
+          star.style.top = `${y}px`;
+          star.style.width = `${size}px`;
+          star.style.height = `${size}px`;
+          star.style.opacity = opacity;
+
+          gameScreen.appendChild(star);
+          game.stars.push({
+            element: star,
+            x: x,
+            y: y,
+            speed: Math.random() * 0.3 + 0.1,
+          });
+        }
+      }
+
+      function gameLoop(currentTime) {
+        if (game.state !== "playing") return;
+
+        const deltaTime = currentTime - game.lastUpdateTime;
+        game.lastUpdateTime = currentTime;
+
+        // Add passive score gain over time
+        game.score += 0.01 * game.wave;
+        updateScoreDisplay();
+
+        // Auto-shoot if there are enemies
+        if (
+          game.hasEnemies &&
+          currentTime - game.lastAutoShoot >
+            config.autoShootDelay / (game.player.weaponLevel === 3 ? 1.5 : game.player.weaponLevel === 2 ? 1.2 : 1)
+        ) {
+          createBullet();
+          game.lastAutoShoot = currentTime;
+        }
+
+        // Update game elements
+        updateEnemies();
+        updateBullets();
+        updateEnemyBullets();
+        updatePowerUps();
+        updateParticles();
+        updateStars();
+        updateAllies();
+
+        // Check if all enemies are defeated
+        if (game.hasEnemies && game.enemies.length === 0) {
+          game.hasEnemies = false;
+          game.allEnemiesDefeated = true;
+          showNotification("Area Cleared!");
+
+          // Add bonus score for clearing wave
+          const waveClearBonus = game.wave * config.waveClearBonusMultiplier;
+          game.score += waveClearBonus;
+          createScorePopup(game.player.x, game.player.y - 40, `WAVE BONUS +${waveClearBonus}`);
+
+          // Award tokens for wave completion if connected to wallet
+          if (zora.isConnected && zora.initialized) {
+            const tokensEarned = config.waveBonus;
+            game.pendingTokens += tokensEarned;
+            createScorePopup(game.player.x, game.player.y - 60, `+${tokensEarned} TOKENS`);
+          }
+
+          // Give player a short break before advancing
+          setTimeout(() => {
+            if (game.state === "playing" && game.allEnemiesDefeated) {
+              game.player.moving = true;
+              showNotification("Advancing to next area...");
+            }
+          }, 2000);
+        }
+
+        // Update player movement
+        if (game.player.moving) {
+          game.currentDistance += config.progressSpeed;
+          game.distance += config.progressSpeed;
+
+          // Check if we should advance to next wave
+          if (game.currentDistance >= config.waveAdvanceDistance) {
+            advanceWave();
+          }
+        }
+
+        // Random power-up chance (only while enemies are present)
+        if (Math.random() < config.powerUpChance / 100 && game.hasEnemies) {
+          createPowerUp();
+        }
+
+        // Request next frame
+        game.animationFrameId = requestAnimationFrame(gameLoop);
+      }
+
+      function updateEnemies() {
+        // Reset flag, we'll set it if we find live enemies
+        game.hasEnemies = game.enemies.length > 0;
+
+        const gameScreen = document.getElementById("game-screen");
+        const screenHeight = gameScreen.clientHeight;
+
+        for (let i = game.enemies.length - 1; i >= 0; i--) {
+          const enemy = game.enemies[i];
+
+          // Move enemy down
+          enemy.y += enemy.velocityY;
+
+          // Handle zigzag movement
+          if (enemy.type === "zigzag") {
+            enemy.zigzagCounter += 0.05;
+            enemy.x += Math.sin(enemy.zigzagCounter) * 2;
+
+            // Update lane based on position
+            const closestLane = game.lanes.reduce(
+              (prev, curr, idx) => {
+                const prevDist = Math.abs(prev.pos - enemy.x);
+                const currDist = Math.abs(curr - enemy.x);
+                return currDist < prevDist ? { pos: curr, idx: idx } : prev;
+              },
+              { pos: game.lanes[0], idx: 0 },
+            );
+
+            enemy.lane = closestLane.idx;
+          }
+
+          // Update enemy position
+          enemy.element.style.left = `${enemy.x}px`;
+          enemy.element.style.top = `${enemy.y}px`;
+
+          // Enemy shooting
+          enemy.shootTimer++;
+          let shootChance = config.enemyShootChance * Math.pow(config.difficultyMultiplier, game.wave - 1);
+
+          // Increase difficulty after wave 3
+          if (game.wave >= 3) {
+            shootChance *= 1.2;
+          }
+
+          if (enemy.shootTimer > 120 && Math.random() < shootChance) {
+            createEnemyBullet(enemy);
+            enemy.shootTimer = 0;
+          }
+
+          // Remove if off screen
+          if (enemy.y > screenHeight + 50) {
+            enemy.element.remove();
+            game.enemies.splice(i, 1);
+            continue;
+          }
+
+          // Check collision with player
+          if (checkCollision(enemy, game.player)) {
+            if (game.player.shielded) {
+              // Shield absorbs damage
+              enemy.health -= 1;
+
+              // Update enemy health bar if it exists
+              if (enemy.healthBar) {
+                const healthPercent = (enemy.health / enemy.maxHealth) * 100;
+                enemy.healthBar.style.width = `${healthPercent}%`;
+              }
+
+              // Push enemy back
+              enemy.y -= 30;
+
+              if (enemy.health <= 0) {
+                handleEnemyDefeat(enemy, i);
+              }
+            } else if (!game.player.invincible) {
+              // Player takes damage
+              const damageMultiplier = game.wave >= 3 ? config.damageMultiplierAfterWave3 : 1;
+              takeDamage(config.baseEnemyDamage * damageMultiplier);
+
+              // Push enemy back
+              enemy.y -= 20;
+            }
+          }
+        }
+      }
+
+      function updateBullets() {
+        for (let i = game.bullets.length - 1; i >= 0; i--) {
+          const bullet = game.bullets[i];
+
+          // Move bullet
+          bullet.y += bullet.velocityY;
+
+          // Update bullet position
+          bullet.element.style.top = `${bullet.y}px`;
+
+          // Remove if off screen
+          if (bullet.y < -bullet.height) {
+            bullet.element.remove();
+            game.bullets.splice(i, 1);
+            continue;
+          }
+
+          // Check collision with enemies
+          let hitEnemy = false;
+          for (let j = game.enemies.length - 1; j >= 0; j--) {
+            const enemy = game.enemies[j];
+
+            if (checkCollision(bullet, enemy)) {
+              // Damage enemy
+              enemy.health -= bullet.damage;
+
+              // Update enemy health bar if it exists
+              if (enemy.healthBar) {
+                const healthPercent = (enemy.health / enemy.maxHealth) * 100;
+                enemy.healthBar.style.width = `${healthPercent}%`;
+              }
+
+              // Check if enemy is defeated
+              if (enemy.health <= 0) {
+                handleEnemyDefeat(enemy, j);
+              } else {
+                // Just flash to show damage
+                enemy.element.style.opacity = 0.5;
+                setTimeout(() => {
+                  if (enemy.element) {
+                    enemy.element.style.opacity = 1;
+                  }
+                }, 100);
+              }
+
+              // Remove bullet
+              bullet.element.remove();
+              game.bullets.splice(i, 1);
+
+              hitEnemy = true;
+              break;
+            }
+          }
+
+          if (hitEnemy) {
+            continue;
+          }
+        }
+      }
+
+      function handleEnemyDefeat(enemy, index) {
+        // Get score based on enemy type
+        const scoreValue = config.scoreValues[enemy.type] || config.scoreValues.normalEnemy;
+
+        // Update score and count
+        game.score += scoreValue;
+        game.enemiesDefeated++;
+
+        // Award tokens based on score if connected to wallet
+        if (zora.isConnected && zora.initialized) {
+          const tokensEarned = Math.floor(scoreValue / config.tokenEarnRate);
+          if (tokensEarned > 0) {
+            game.pendingTokens += tokensEarned;
+          }
+        }
+
+        // Visual effects
+        createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
+        createScorePopup(enemy.x, enemy.y, `+${scoreValue}`);
+
+        // Sound effect
+        audio.play("hit");
+        triggerHapticFeedback();
+
+        // Check for dropping power-ups
+        const dropRoll = Math.random();
+        const totalDropChance =
+          config.healthDropChance +
+          config.shieldDropChance +
+          config.weaponUpgradeChance +
+          config.bombDropChance +
+          config.allyDropChance;
+
+        // Use running sum to determine what drops
+        let runningSum = 0;
+
+        // Check for ally drops (highest priority)
+        runningSum += config.allyDropChance;
+        if (dropRoll < runningSum && game.allies.length < config.maxAllies) {
+          createPowerUp(enemy.x + enemy.width / 2 - 8, enemy.y, "ally");
+        }
+        // Then shield drops
+        else if (dropRoll < (runningSum += config.shieldDropChance)) {
+          createPowerUp(enemy.x + enemy.width / 2 - 8, enemy.y, "shield");
+        }
+        // Then weapon upgrades
+        else if (dropRoll < (runningSum += config.weaponUpgradeChance) && game.player.weaponLevel < 3) {
+          createPowerUp(enemy.x + enemy.width / 2 - 8, enemy.y, "weapon");
+        }
+        // Then health drops
+        else if (dropRoll < (runningSum += config.healthDropChance)) {
+          createPowerUp(enemy.x + enemy.width / 2 - 8, enemy.y, "health");
+        }
+        // Finally bomb drops
+        else if (dropRoll < (runningSum += config.bombDropChance)) {
+          createPowerUp(enemy.x + enemy.width / 2 - 8, enemy.y, "bomb");
+        }
+
+        // Remove enemy
+        enemy.element.remove();
+        game.enemies.splice(index, 1);
+      }
+
+      function updateEnemyBullets() {
+        const gameScreen = document.getElementById("game-screen");
+        const screenHeight = gameScreen.clientHeight;
+
+        for (let i = game.enemyBullets.length - 1; i >= 0; i--) {
+          const bullet = game.enemyBullets[i];
+
+          // Move bullet
+          bullet.y += bullet.velocityY;
+
+          // Update bullet position
+          bullet.element.style.top = `${bullet.y}px`;
+
+          // Remove if off screen
+          if (bullet.y > screenHeight) {
+            bullet.element.remove();
+            game.enemyBullets.splice(i, 1);
+            continue;
+          }
+
+          // Check collision with player
+          if (checkCollision(bullet, game.player)) {
+            // Remove bullet
+            bullet.element.remove();
+            game.enemyBullets.splice(i, 1);
+
+            if (game.player.shielded) {
+              // Shield absorbs the hit
+              createExplosion(bullet.x, bullet.y, 15);
+            } else if (!game.player.invincible) {
+              // Player takes damage - adjust difficulty based on wave
+              const damageMultiplier = game.wave >= 3 ? config.damageMultiplierAfterWave3 : 1;
+              takeDamage((config.baseEnemyDamage / 2) * damageMultiplier);
+              createExplosion(bullet.x, bullet.y, 15);
+            }
+          }
+
+          // Check collision with allies
+          for (let j = game.allies.length - 1; j >= 0; j--) {
+            const ally = game.allies[j];
+
+            if (checkCollision(bullet, ally)) {
+              // Remove bullet
+              bullet.element.remove();
+              game.enemyBullets.splice(i, 1);
+
+              // Create explosion
+              createExplosion(ally.x + ally.width / 2, ally.y + ally.height / 2, 15);
+
+              // Remove ally
+              ally.element.remove();
+              game.allies.splice(j, 1);
+              break;
+            }
+          }
+        }
+      }
+
+      function updatePowerUps() {
+        const gameScreen = document.getElementById("game-screen");
+        const screenHeight = gameScreen.clientHeight;
+
+        for (let i = game.powerUps.length - 1; i >= 0; i--) {
+          const powerUp = game.powerUps[i];
+
+          // Move power-up
+          powerUp.y += powerUp.velocityY;
+
+          // Update position
+          powerUp.element.style.top = `${powerUp.y}px`;
+
+          // Remove if off screen
+          if (powerUp.y > screenHeight) {
+            powerUp.element.remove();
+            game.powerUps.splice(i, 1);
+            continue;
+          }
+
+          // Check collision with player
+          if (checkCollision(powerUp, game.player)) {
+            // Apply power-up effect
+            applyPowerUp(powerUp.type);
+
+            // Visual and sound effects
+            createExplosion(powerUp.x + powerUp.width / 2, powerUp.y + powerUp.height / 2, 20);
+            audio.play(powerUp.type === "token" ? "token" : "powerUp");
+            triggerHapticFeedback();
+
+            // Remove power-up
+            powerUp.element.remove();
+            game.powerUps.splice(i, 1);
+          }
+        }
+      }
+
+      function applyPowerUp(type) {
+        switch (type) {
+          case "health":
+            // Restore health
+            game.health = Math.min(game.health + 25, config.playerHealth);
+            updateHealthBar();
+            createScorePopup(game.player.x, game.player.y - 20, "HEALTH +25");
+            break;
+
+          case "shield":
+            // Activate shield
+            activateShield();
+            createScorePopup(game.player.x, game.player.y - 20, "SHIELD");
+            break;
+
+          case "ally":
+            // Add ally
+            if (game.allies.length < config.maxAllies) {
+              createAlly();
+              createScorePopup(game.player.x, game.player.y - 20, "ALLY");
+            } else {
+              // If max allies reached, give score instead
+              game.score += 20;
+              createScorePopup(game.player.x, game.player.y - 20, "+20 SCORE");
+            }
+            break;
+
+          case "weapon":
+            // Upgrade weapon
+            if (game.player.weaponLevel < 3) {
+              game.player.weaponLevel++;
+              updateWeaponDisplay();
+              createScorePopup(game.player.x, game.player.y - 20, `WEAPON LV.${game.player.weaponLevel}`);
+              audio.play("upgrade");
+            } else {
+              // Already max level, give score instead
+              game.score += 20;
+              createScorePopup(game.player.x, game.player.y - 20, "+20 SCORE");
+            }
+            break;
+
+          case "bomb":
+            // Add bomb
+            game.player.bombCount++;
+            updateBombDisplay();
+            createScorePopup(game.player.x, game.player.y - 20, "BOMB");
+            break;
+            
+          case "token":
+            // Add token (only if wallet connected)
+            if (zora.isConnected && zora.initialized) {
+              game.pendingTokens += 5;
+              createScorePopup(game.player.x, game.player.y - 20, "+5 TOKENS");
+            } else {
+              // If not connected, give score instead
+              game.score += 30;
+              createScorePopup(game.player.x, game.player.y - 20, "+30 SCORE");
+            }
+            break;
+        }
+
+        // Add score for collecting power-up
+        game.score += 5;
+      }
+
+      function updateParticles() {
+        for (let i = game.particles.length - 1; i >= 0; i--) {
+          const particle = game.particles[i];
+
+          // Move particle
+          particle.x += particle.velocityX;
+          particle.y += particle.velocityY;
+
+          // Decrease life
+          particle.life--;
+
+          // Update position
+          particle.element.style.left = `${particle.x}px`;
+          particle.element.style.top = `${particle.y}px`;
+
+          // Fade out
+          particle.element.style.opacity = particle.life / 30;
+
+          // Remove if life is over
+          if (particle.life <= 0) {
+            particle.element.remove();
+            game.particles.splice(i, 1);
+          }
+        }
+      }
+
+      function updateStars() {
+        // Only update stars when player is moving
+        if (!game.player.moving) return;
+
+        const gameScreen = document.getElementById("game-screen");
+        const screenHeight = gameScreen.clientHeight;
+
+        for (let i = 0; i < game.stars.length; i++) {
+          const star = game.stars[i];
+
+          // Move star down to create forward motion effect
+          star.y += star.speed * 5;
+
+          // Reset if off screen
+          if (star.y > screenHeight) {
+            star.y = 0;
+            star.x = Math.random() * gameScreen.clientWidth;
+          }
+
+          // Update position
+          star.element.style.top = `${star.y}px`;
+        }
+      }
+
+      function updateAllies() {
+        // Skip if no allies
+        if (game.allies.length === 0) return;
+
+        for (let i = 0; i < game.allies.length; i++) {
+          const ally = game.allies[i];
+
+          // Update ally positions based on player position
+          const allyPosition = i;
+
+          if (allyPosition % 2 === 0) {
+            // Right side
+            ally.x = game.player.x + game.player.width + 10 + Math.floor(allyPosition / 2) * 15;
+            ally.y = game.player.y + 10 + Math.floor(allyPosition / 2) * 20;
+          } else {
+            // Left side
+            ally.x = game.player.x - 10 - ally.width - Math.floor(allyPosition / 2) * 15;
+            ally.y = game.player.y + 10 + Math.floor(allyPosition / 2) * 20;
+          }
+
+          // Update position
+          ally.element.style.left = `${ally.x}px`;
+          ally.element.style.top = `${ally.y}px`;
+
+          // Shoot occasionally if enemies exist
+          if (game.hasEnemies) {
+            ally.shootTimer++;
+
+            if (ally.shootTimer > 90) {
+              // Less frequent than player
+              // Create ally bullet
+              createAllyBullet(ally);
+              ally.shootTimer = 0;
+            }
+          }
+        }
+      }
+
+      function createAllyBullet(ally) {
+        const gameScreen = document.getElementById("game-screen");
+
+        const bullet = {
+          x: ally.x + ally.width / 2 - 2,
+          y: ally.y - 10,
+          width: 4,
+          height: 10,
+          velocityY: -config.bulletSpeed,
+          element: document.createElement("div"),
+          damage: 1, // Allies always do base damage
+        };
+
+        bullet.element.className = "bullet";
+        bullet.element.style.backgroundColor = "#88ff88"; // Different color for ally bullets
+        bullet.element.style.left = `${bullet.x}px`;
+        bullet.element.style.top = `${bullet.y}px`;
+
+        gameScreen.appendChild(bullet.element);
+        game.bullets.push(bullet);
+      }
+
+      function takeDamage(amount) {
+        if (game.player.invincible) return;
+
+        game.health -= amount;
+        updateHealthBar();
+
+        // Visual and sound effects
+        audio.play("playerHit");
+        triggerHapticFeedback();
+
+        const gameScreen = document.getElementById("game-screen");
+        gameScreen.classList.add("flash");
+        setTimeout(() => {
+          gameScreen.classList.remove("flash");
+        }, 200);
+
+        // Make player briefly invincible
+        game.player.invincible = true;
+        game.player.element.style.opacity = 0.5;
+
+        setTimeout(() => {
+          game.player.invincible = false;
+          game.player.element.style.opacity = 1;
+        }, config.invincibilityTime);
+
+        // Check if player has lost all health
+        if (game.health <= 0) {
+          endGame();
+        }
+      }
+
+      function updateHealthBar() {
+        const healthBar = document.getElementById("health-bar");
+        const healthPercent = (game.health / config.playerHealth) * 100;
+        healthBar.style.width = `${healthPercent}%`;
+
+        // Change color based on health remaining
+        if (healthPercent > 60) {
+          healthBar.style.backgroundColor = "#00ff00"; // Green
+        } else if (healthPercent > 30) {
+          healthBar.style.backgroundColor = "#ffff00"; // Yellow
+        } else {
+          healthBar.style.backgroundColor = "#ff0000"; // Red
+        }
+      }
+
+      function updateWeaponDisplay() {
+        document.getElementById("weapon-container").textContent = `WEAPON: LV.${game.player.weaponLevel}`;
+      }
+
+      function updateBombDisplay() {
+        document.getElementById("bomb-container").textContent = `BOMBS: ${game.player.bombCount}`;
+      }
+
+      function updateScoreDisplay() {
+        document.getElementById("score-container").textContent = `SCORE: ${Math.floor(game.score)}`;
+      }
+
+      function updateWaveDisplay() {
+        document.getElementById("wave-container").textContent = `WAVE: ${game.wave}`;
+      }
+
+      function updateTokenDisplay() {
+        document.getElementById("token-container").textContent = `TOKENS: ${game.tokens}`;
+      }
+
+      function checkCollision(obj1, obj2) {
+        return (
+          obj1.x < obj2.x + obj2.width &&
+          obj1.x + obj1.width > obj2.x &&
+          obj1.y < obj2.y + obj2.height &&
+          obj1.y + obj1.height > obj2.y
+        );
+      }
+
+      function endGame() {
+        game.state = "gameOver";
+        cancelAnimationFrame(game.animationFrameId);
+
+        // Display game over screen
+        const gameOverScreen = document.getElementById("game-over-screen");
+        document.getElementById("final-score").textContent = `FINAL SCORE: ${Math.floor(game.score)}`;
+        document.getElementById("enemies-defeated").textContent = `ENEMIES DEFEATED: ${game.enemiesDefeated}`;
+        document.getElementById("wave-reached").textContent = `WAVE REACHED: ${game.wave}`;
+        
+        // Show token earnings if wallet is connected
+        if (zora.isConnected && zora.initialized && game.pendingTokens > 0) {
+          document.getElementById("tokens-earned").textContent = `TOKENS EARNED: ${game.pendingTokens}`;
+          document.getElementById("tokens-earned").style.display = "block";
+          
+          // Show claim button if enough tokens to claim
+          if (game.pendingTokens >= config.minTokensToClaim) {
+            document.getElementById("claim-tokens").style.display = "block";
+          } else {
+            // Not enough tokens to claim
+            document.getElementById("claim-tokens").style.display = "none";
+          }
+        } else {
+          document.getElementById("tokens-earned").style.display = "none";
+          document.getElementById("claim-tokens").style.display = "none";
+        }
+        
+        gameOverScreen.style.display = "flex";
+
+        audio.play("gameOver");
+
+        // Send score to Farcade
+        if (game.farcadeInitialized && window.FarcadeSDK) {
+          try {
+            window.FarcadeSDK.singlePlayer.actions.gameOver({ score: Math.floor(game.score) });
+          } catch (e) {
+            console.warn("Farcade gameOver failed:", e);
+          }
+        }
+      }
+
+      function restartGame() {
+        document.getElementById("game-over-screen").style.display = "none";
+        
+        // If player had pending tokens and didn't claim them,
+        // add them automatically to their game wallet
+        if (zora.isConnected && zora.initialized && game.pendingTokens > 0) {
+          game.tokens += game.pendingTokens;
+          game.pendingTokens = 0;
+          
+          // Show notification about tokens being added
+          setTimeout(() => {
+            showNotification("Tokens added to your game wallet!");
+          }, 1000);
+        }
+        
+        startGame();
+      }
+
+      // Initialize the game when DOM is loaded
+      window.addEventListener("DOMContentLoaded", initGame);
+    </script>
+  </body>
+</html>
